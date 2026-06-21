@@ -15,6 +15,7 @@ const el = {
   mic: document.getElementById("micBtn"),
   wake: document.getElementById("wakeBtn"),
   tts: document.getElementById("ttsToggle"),
+  voice: document.getElementById("voiceSelect"),
   reset: document.getElementById("resetBtn"),
 };
 
@@ -29,23 +30,70 @@ function setOrb(state) { el.orb.className = "orb " + state; }
 function addMessage(role, text) {
   const div = document.createElement("div");
   div.className = "msg " + role;
-  div.textContent = text;
+  // ```dil ... ``` bloklarını kod paneli olarak göster
+  const parts = text.split(/```/);
+  parts.forEach((part, i) => {
+    if (i % 2 === 1) {
+      const pre = document.createElement("pre");
+      const lines = part.split("\n");
+      const lang = lines[0].trim();
+      const code = (lang && !lang.includes(" ")) ? lines.slice(1).join("\n") : part;
+      if (lang && !lang.includes(" ")) {
+        const tag = document.createElement("span");
+        tag.className = "lang";
+        tag.textContent = lang;
+        pre.appendChild(tag);
+      }
+      pre.appendChild(document.createTextNode(code));
+      div.appendChild(pre);
+    } else if (part) {
+      const span = document.createElement("span");
+      span.textContent = part;
+      div.appendChild(span);
+    }
+  });
   el.chat.appendChild(div);
   el.chat.scrollTop = el.chat.scrollHeight;
+}
+
+// Sesli okuma için kod bloklarını çıkar
+function stripCode(text) {
+  return text.replace(/```[\s\S]*?```/g, " (kodu ekranda gösterdim) ").trim();
 }
 
 // ---- Seslendirme (TTS) ----
 function speak(text) {
   if (!el.tts.checked || !("speechSynthesis" in window)) return;
+  const spoken = stripCode(text);
+  if (!spoken) return;
   speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
+  const u = new SpeechSynthesisUtterance(spoken);
   u.lang = "tr-TR";
   u.rate = 1.05;
-  const trVoice = speechSynthesis.getVoices().find(v => v.lang.startsWith("tr"));
-  if (trVoice) u.voice = trVoice;
+  const voices = speechSynthesis.getVoices();
+  const chosen = el.voice && el.voice.value
+    ? voices.find(v => v.name === el.voice.value)
+    : voices.find(v => v.lang.startsWith("tr"));
+  if (chosen) u.voice = chosen;
   u.onstart = () => setOrb("speaking");
   u.onend = () => { setOrb(wakeMode ? "listening" : "idle"); };
   speechSynthesis.speak(u);
+}
+
+// Ses listesini doldur (Türkçe sesler üstte)
+function populateVoices() {
+  if (!el.voice || !("speechSynthesis" in window)) return;
+  const voices = speechSynthesis.getVoices();
+  if (!voices.length) return;
+  const tr = voices.filter(v => v.lang.startsWith("tr"));
+  const others = voices.filter(v => !v.lang.startsWith("tr"));
+  el.voice.innerHTML = "";
+  [...tr, ...others].forEach(v => {
+    const opt = document.createElement("option");
+    opt.value = v.name;
+    opt.textContent = `${v.name} (${v.lang})`;
+    el.voice.appendChild(opt);
+  });
 }
 
 // ---- Sunucuya mesaj gönder ----
@@ -186,7 +234,8 @@ el.reset.addEventListener("click", async () => {
 
 // Sesleri önceden yükle (Chrome bazen geç yüklüyor)
 if ("speechSynthesis" in window) {
-  speechSynthesis.onvoiceschanged = () => {};
+  populateVoices();
+  speechSynthesis.onvoiceschanged = populateVoices;
 }
 
 // ---- Hatırlatıcı bildirimleri (periyodik kontrol) ----

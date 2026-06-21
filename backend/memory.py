@@ -56,6 +56,16 @@ def init_db():
         )
         """
     )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            when_at TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+        """
+    )
     conn.commit()
     conn.close()
 
@@ -191,6 +201,43 @@ def pop_due_reminders() -> list:
 def cancel_reminder(reminder_id: int) -> bool:
     conn = _connect()
     cur = conn.execute("DELETE FROM reminders WHERE id = ?", (reminder_id,))
+    conn.commit()
+    ok = cur.rowcount > 0
+    conn.close()
+    return ok
+
+
+# ---------------------------------------------------------------------------
+# Takvim etkinlikleri
+# ---------------------------------------------------------------------------
+def add_event(title: str, when_at_iso: str) -> int:
+    conn = _connect()
+    cur = conn.execute(
+        "INSERT INTO events (title, when_at, created_at) VALUES (?, ?, ?)",
+        (title, when_at_iso, datetime.utcnow().isoformat()),
+    )
+    conn.commit()
+    eid = cur.lastrowid
+    conn.close()
+    return eid
+
+
+def list_events(upcoming_only: bool = True) -> list:
+    conn = _connect()
+    q = "SELECT id, title, when_at FROM events"
+    params = ()
+    if upcoming_only:
+        q += " WHERE when_at >= ?"
+        params = (datetime.utcnow().isoformat(),)
+    q += " ORDER BY when_at"
+    rows = conn.execute(q, params).fetchall()
+    conn.close()
+    return [{"id": r["id"], "title": r["title"], "when_at": r["when_at"]} for r in rows]
+
+
+def delete_event(event_id: int) -> bool:
+    conn = _connect()
+    cur = conn.execute("DELETE FROM events WHERE id = ?", (event_id,))
     conn.commit()
     ok = cur.rowcount > 0
     conn.close()

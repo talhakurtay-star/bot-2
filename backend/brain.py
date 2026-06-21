@@ -35,6 +35,9 @@ Kuralların:
 - Bir web sayfasını okuman/özetlemen istenirse web_fetch kullan; matematik için calculate.
 - "Bana ... hatırlat" denirse set_reminder kullan; not tutma için add_note / list_notes.
 - Bilgisayar durumu (pil, RAM, disk) sorulursa system_info kullan.
+- Müzik için play_music; çalanı duraklat/geç için media_control kullan.
+- E-posta göndermek için send_email; takvim için add_event / list_events (tarihi ISO 8601'e çevir).
+- Kod yazarken cevabında kodu ```dil ... ``` bloğu içinde ver ki ekranda düzgün gösterilsin.
 - Bir aracı kullandıktan sonra sonucu doğal bir cümleyle özetle."""
 
 MAX_ITERATIONS = 8

@@ -89,6 +89,36 @@ h1 {
 .msg.user { align-self: flex-end; background: linear-gradient(135deg, var(--accent2), #4f6bff); }
 .msg.assistant { align-self: flex-start; background: #1c2944; }
 
+.msg pre {
+  background: #0b1020;
+  border: 1px solid #2a3a5c;
+  border-radius: 10px;
+  padding: 12px;
+  margin: 8px 0 0;
+  overflow-x: auto;
+  font-family: "Fira Code", Consolas, monospace;
+  font-size: 13px;
+  color: #b9f5d0;
+}
+.msg pre .lang {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+#voiceSelect {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid #2a3a5c;
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 13px;
+  max-width: 160px;
+}
+
 .controls {
   display: flex;
   gap: 8px;

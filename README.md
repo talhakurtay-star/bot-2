@@ -16,7 +16,12 @@ Tarayıcıda konuşursun, beyin senin bilgisayarında çalışır — buluta ver
 - 🖥️ **Sistem bilgisi** — CPU, RAM, disk, batarya (`system_info`).
 - 📝 **Notlar** — Not ekle/listele/sil.
 - ⏰ **Hatırlatıcılar** — "10 dakika sonra hatırlat" → zamanı gelince sesli uyarı.
-- 💾 **Hafıza** — Konuşma geçmişi ve kişisel bilgiler SQLite'ta kalıcı saklanır.
+- 🎵 **Müzik** — YouTube'da çalma + play/pause/next medya kontrolü.
+- 📧 **E-posta** — Gönderme (SMTP) ve okunmamışları okuma (IMAP).
+- 📅 **Takvim** — Etkinlik ekle/listele/sil.
+- 🎨 **Kod paneli** — Yazdığı kodu sohbette renkli panelde gösterir (sesli okumaz).
+- 🗣️ **Ses seçimi** — Arayüzden TTS sesini değiştir.
+- 💾 **Hafıza** — Konuşma geçmişi, notlar, hatırlatıcılar ve etkinlikler SQLite'ta kalıcı.
 
 ## Mimari
 
@@ -90,6 +95,8 @@ Ardından tarayıcıda **http://127.0.0.1:8000** adresini aç.
 | `ANTHROPIC_API_KEY` | — | Claude modu için API anahtarı (zorunlu) |
 | `JARVIS_WORKSPACE` | `~/jarvis_workspace` | Dosya/komut işlemlerinin yapıldığı klasör |
 | `JARVIS_ALLOW_COMMANDS` | `1` | Komut çalıştırmayı kapatmak için `0` yap |
+| `JARVIS_SMTP_HOST` / `_PORT` / `_USER` / `_PASS` / `_FROM` | — | E-posta göndermek için SMTP ayarları (örn. Gmail: `smtp.gmail.com`, `465`, uygulama şifresi) |
+| `JARVIS_IMAP_HOST` | — | Okunmamış e-postaları okumak için IMAP sunucusu (örn. `imap.gmail.com`) |
 
 ### İki beyin modu
 

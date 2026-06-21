@@ -7,11 +7,15 @@ import os
 import re
 import ast
 import sys
+import ssl
+import smtplib
 import platform
 import subprocess
 import shutil
 import operator
 import webbrowser
+import urllib.parse
+from email.message import EmailMessage
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -399,6 +403,130 @@ def cancel_reminder(reminder_id: int) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Müzik / medya kontrolü
+# ---------------------------------------------------------------------------
+def play_music(query: str) -> str:
+    """Bir şarkı/sanatçıyı YouTube'da arar ve tarayıcıda açar."""
+    q = urllib.parse.quote(query)
+    webbrowser.open(f"https://www.youtube.com/results?search_query={q}")
+    return f"YouTube'da '{query}' açıldı."
+
+
+def media_control(action: str) -> str:
+    """Medya oynatıcıyı kontrol eder: play, pause, next, previous, stop."""
+    action = action.strip().lower()
+    osname = platform.system().lower()
+    try:
+        if osname == "linux":
+            if shutil.which("playerctl") is None:
+                return "Medya kontrolü için 'playerctl' kurulu değil."
+            cmd = {"play": "play", "pause": "pause", "stop": "stop",
+                   "next": "next", "previous": "previous"}.get(action, "play-pause")
+            subprocess.run(["playerctl", cmd], check=False)
+        elif osname == "darwin":
+            app_action = {"play": "play", "pause": "pause", "stop": "pause",
+                          "next": "next track", "previous": "previous track"}.get(action, "playpause")
+            subprocess.run(["osascript", "-e",
+                            f'tell application "Spotify" to {app_action}'], check=False)
+        elif osname == "windows":
+            keys = {"play": 0xB3, "pause": 0xB3, "next": 0xB0,
+                    "previous": 0xB1, "stop": 0xB2}.get(action, 0xB3)
+            ps = (
+                "$c='[DllImport(\"user32.dll\")]public static extern void keybd_event"
+                "(byte b,byte s,uint f,int e);';"
+                "$t=Add-Type -MemberDefinition $c -Name K -PassThru;"
+                f"$t::keybd_event({keys},0,0,0);$t::keybd_event({keys},0,2,0)"
+            )
+            subprocess.run(["powershell", "-Command", ps], check=False)
+        return f"Medya: {action}"
+    except Exception as e:
+        return f"Medya kontrolü başarısız: {e}"
+
+
+# ---------------------------------------------------------------------------
+# E-posta (SMTP/IMAP - ortam değişkenleriyle yapılandırılır)
+# ---------------------------------------------------------------------------
+def send_email(to: str, subject: str, body: str) -> str:
+    """Bir e-posta gönderir. SMTP ayarları ortam değişkenlerinden okunur."""
+    host = os.environ.get("JARVIS_SMTP_HOST")
+    user = os.environ.get("JARVIS_SMTP_USER")
+    password = os.environ.get("JARVIS_SMTP_PASS")
+    port = int(os.environ.get("JARVIS_SMTP_PORT", "465"))
+    sender = os.environ.get("JARVIS_SMTP_FROM", user or "")
+    if not (host and user and password):
+        return "E-posta ayarlı değil (JARVIS_SMTP_HOST/USER/PASS gerekli)."
+    try:
+        msg = EmailMessage()
+        msg["From"] = sender
+        msg["To"] = to
+        msg["Subject"] = subject
+        msg.set_content(body)
+        ctx = ssl.create_default_context()
+        with smtplib.SMTP_SSL(host, port, context=ctx) as server:
+            server.login(user, password)
+            server.send_message(msg)
+        return f"E-posta gönderildi: {to}"
+    except Exception as e:
+        return f"E-posta gönderilemedi: {e}"
+
+
+def get_unread_emails(limit: int = 5) -> str:
+    """Okunmamış e-postaların başlıklarını getirir. IMAP ayarları ortamdan okunur."""
+    import imaplib
+    import email as email_lib
+    host = os.environ.get("JARVIS_IMAP_HOST")
+    user = os.environ.get("JARVIS_SMTP_USER")
+    password = os.environ.get("JARVIS_SMTP_PASS")
+    if not (host and user and password):
+        return "E-posta okuma ayarlı değil (JARVIS_IMAP_HOST gerekli)."
+    try:
+        with imaplib.IMAP4_SSL(host) as m:
+            m.login(user, password)
+            m.select("INBOX")
+            _, data = m.search(None, "UNSEEN")
+            ids = data[0].split()[-int(limit):]
+            if not ids:
+                return "Okunmamış e-posta yok."
+            out = []
+            for i in reversed(ids):
+                _, msg_data = m.fetch(i, "(BODY.PEEK[HEADER.FIELDS (FROM SUBJECT)])")
+                hdr = email_lib.message_from_bytes(msg_data[0][1])
+                out.append(f"- {hdr.get('From','?')}: {hdr.get('Subject','(konu yok)')}")
+            return "\n".join(out)
+    except Exception as e:
+        return f"E-posta okunamadı: {e}"
+
+
+# ---------------------------------------------------------------------------
+# Takvim
+# ---------------------------------------------------------------------------
+def add_event(title: str, when: str) -> str:
+    """Takvime etkinlik ekler. 'when' ISO 8601 biçiminde olmalı (ör. 2026-06-22T15:00)."""
+    eid = memory.add_event(title, when)
+    return f"Etkinlik eklendi (#{eid}): {title} - {when}"
+
+
+def list_events() -> str:
+    """Yaklaşan takvim etkinliklerini listeler."""
+    events = memory.list_events(upcoming_only=True)
+    if not events:
+        return "Yaklaşan etkinlik yok."
+    out = []
+    for e in events:
+        try:
+            when = datetime.fromisoformat(e["when_at"]).strftime("%d.%m %H:%M")
+        except Exception:
+            when = e["when_at"]
+        out.append(f"#{e['id']} {when}: {e['title']}")
+    return "\n".join(out)
+
+
+def delete_event(event_id: int) -> str:
+    """Numarasına göre bir etkinliği siler."""
+    return "Etkinlik silindi." if memory.delete_event(int(event_id)) else "O numarada etkinlik yok."
+
+
+# ---------------------------------------------------------------------------
 # Tool kayıt tablosu - Ollama'ya verilecek şema + çalıştırılabilir referans
 # ---------------------------------------------------------------------------
 TOOL_FUNCTIONS = {
@@ -422,6 +550,13 @@ TOOL_FUNCTIONS = {
     "set_reminder": set_reminder,
     "list_reminders": list_reminders,
     "cancel_reminder": cancel_reminder,
+    "play_music": play_music,
+    "media_control": media_control,
+    "send_email": send_email,
+    "get_unread_emails": get_unread_emails,
+    "add_event": add_event,
+    "list_events": list_events,
+    "delete_event": delete_event,
 }
 
 TOOL_SCHEMAS = [
@@ -674,6 +809,100 @@ TOOL_SCHEMAS = [
                     "reminder_id": {"type": "integer", "description": "İptal edilecek hatırlatıcının numarası"},
                 },
                 "required": ["reminder_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "play_music",
+            "description": "Bir şarkı veya sanatçıyı YouTube'da arayıp çalar.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Şarkı/sanatçı adı"},
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "media_control",
+            "description": "Çalan medyayı kontrol eder: play, pause, next, previous, stop.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string", "description": "play, pause, next, previous veya stop"},
+                },
+                "required": ["action"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "send_email",
+            "description": "Bir e-posta gönderir (SMTP ayarları yapılandırılmışsa).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "to": {"type": "string", "description": "Alıcı e-posta adresi"},
+                    "subject": {"type": "string", "description": "Konu"},
+                    "body": {"type": "string", "description": "E-posta metni"},
+                },
+                "required": ["to", "subject", "body"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_unread_emails",
+            "description": "Okunmamış e-postaların başlıklarını getirir (IMAP yapılandırılmışsa).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "limit": {"type": "integer", "description": "Kaç e-posta gösterilsin"},
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "add_event",
+            "description": "Takvime etkinlik ekler. when alanı ISO 8601 olmalı (ör. 2026-06-22T15:00).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string", "description": "Etkinlik başlığı"},
+                    "when": {"type": "string", "description": "ISO 8601 tarih-saat"},
+                },
+                "required": ["title", "when"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_events",
+            "description": "Yaklaşan takvim etkinliklerini listeler.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_event",
+            "description": "Numarasına göre bir takvim etkinliğini siler.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "event_id": {"type": "integer", "description": "Silinecek etkinliğin numarası"},
+                },
+                "required": ["event_id"],
             },
         },
     },
