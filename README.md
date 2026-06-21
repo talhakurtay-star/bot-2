@@ -77,10 +77,29 @@ Ardından tarayıcıda **http://127.0.0.1:8000** adresini aç.
 
 | Değişken | Varsayılan | Açıklama |
 |---|---|---|
+| `JARVIS_PROVIDER` | `ollama` | Yapay zeka beyni: `ollama` (yerel/ücretsiz) veya `claude` (Claude API, pro) |
 | `JARVIS_MODEL` | `llama3.1` | Kullanılacak Ollama modeli (kod için `qwen2.5-coder` önerilir) |
 | `OLLAMA_HOST` | `http://localhost:11434` | Ollama sunucu adresi |
+| `JARVIS_CLAUDE_MODEL` | `claude-opus-4-8` | Claude modu için kullanılacak model |
+| `JARVIS_CLAUDE_MAX_TOKENS` | `2048` | Claude modu yanıt uzunluğu sınırı |
+| `ANTHROPIC_API_KEY` | — | Claude modu için API anahtarı (zorunlu) |
 | `JARVIS_WORKSPACE` | `~/jarvis_workspace` | Dosya/komut işlemlerinin yapıldığı klasör |
 | `JARVIS_ALLOW_COMMANDS` | `1` | Komut çalıştırmayı kapatmak için `0` yap |
+
+### İki beyin modu
+
+**Ücretsiz/yerel (varsayılan)** — Ollama ile, internet/ödeme gerekmez:
+```bash
+python main.py
+```
+
+**Profesyonel (Claude Opus 4.8)** — gerçekten Claude'un kendisi, çok daha yetenekli (ücretli):
+```bash
+export JARVIS_PROVIDER=claude
+export ANTHROPIC_API_KEY=sk-ant-...   # https://console.anthropic.com adresinden alınır
+python main.py
+```
+Claude modunda Ollama kurulumuna gerek yoktur; tüm araçlar (web arama, sistem kontrolü, kod yazma) aynen çalışır.
 
 ### Kod yazma örneği
 
