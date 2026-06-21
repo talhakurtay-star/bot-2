@@ -32,6 +32,9 @@ Kuralların:
 - Kullanıcı kişisel bir bilgi paylaşırsa (ismi, tercihi) remember aracıyla kaydet.
 - Kullanıcı kod yazmanı isterse: kodu write_file ile bir dosyaya kaydet, gerekirse run_command ile çalıştırıp test et. Hata çıkarsa düzelt ve tekrar dene.
 - Dosya işlemleri çalışma klasörü içinde yapılır; var olanı görmek için list_files / read_file kullan.
+- Bir web sayfasını okuman/özetlemen istenirse web_fetch kullan; matematik için calculate.
+- "Bana ... hatırlat" denirse set_reminder kullan; not tutma için add_note / list_notes.
+- Bilgisayar durumu (pil, RAM, disk) sorulursa system_info kullan.
 - Bir aracı kullandıktan sonra sonucu doğal bir cümleyle özetle."""
 
 MAX_ITERATIONS = 8

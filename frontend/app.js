@@ -189,6 +189,22 @@ if ("speechSynthesis" in window) {
   speechSynthesis.onvoiceschanged = () => {};
 }
 
+// ---- Hatırlatıcı bildirimleri (periyodik kontrol) ----
+async function checkReminders() {
+  try {
+    const res = await fetch(API + "/reminders/due");
+    const data = await res.json();
+    for (const r of data.due || []) {
+      const text = "⏰ Hatırlatma: " + r.text;
+      addMessage("assistant", text);
+      speak(text);
+    }
+  } catch (e) {
+    // sunucu kapalıysa sessizce geç
+  }
+}
+setInterval(checkReminders, 15000); // her 15 saniyede bir
+
 // Açılış
 addMessage("assistant", "Merhaba efendim. Size nasıl yardımcı olabilirim? Yazabilir, mikrofona basabilir veya 'Jarvis' diyerek beni çağırabilirsiniz.");
 setOrb("idle");

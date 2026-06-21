@@ -56,6 +56,12 @@ def reset(req: ChatRequest):
     return {"status": "ok"}
 
 
+@app.get("/reminders/due")
+def reminders_due():
+    """Zamanı gelmiş hatırlatıcıları döndürür (frontend periyodik sorar)."""
+    return {"due": memory.pop_due_reminders()}
+
+
 # Frontend statik dosyaları (en sona koy ki API yolları öncelikli olsun)
 @app.get("/")
 def index():

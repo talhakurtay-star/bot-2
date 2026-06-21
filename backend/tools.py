@@ -4,14 +4,18 @@ Bu fonksiyonlar Ollama'nın tool-calling özelliği ile çağrılır.
 Her fonksiyon basit tipler alır ve string sonuç döndürür.
 """
 import os
+import re
+import ast
 import sys
 import platform
 import subprocess
 import shutil
+import operator
 import webbrowser
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
+import requests
 from ddgs import DDGS
 
 import memory
@@ -263,6 +267,138 @@ def run_command(command: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Web sayfası okuma
+# ---------------------------------------------------------------------------
+def web_fetch(url: str) -> str:
+    """Bir web sayfasının metin içeriğini getirir (özetlemek/okumak için)."""
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+    try:
+        resp = requests.get(url, timeout=15, headers={"User-Agent": "Mozilla/5.0 Jarvis"})
+        resp.raise_for_status()
+        html = resp.text
+        # script/style at, etiketleri temizle, boşlukları sadeleştir
+        html = re.sub(r"(?is)<(script|style|head|nav|footer)[^>]*>.*?</\1>", " ", html)
+        text = re.sub(r"(?s)<[^>]+>", " ", html)
+        text = re.sub(r"&[a-z]+;", " ", text)
+        text = re.sub(r"\s+", " ", text).strip()
+        if not text:
+            return "Sayfada okunabilir metin bulunamadı."
+        return text[:4000] + ("\n... (kısaltıldı)" if len(text) > 4000 else "")
+    except Exception as e:
+        return f"Sayfa getirilemedi: {e}"
+
+
+# ---------------------------------------------------------------------------
+# Güvenli hesap makinesi
+# ---------------------------------------------------------------------------
+_ALLOWED_OPS = {
+    ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul,
+    ast.Div: operator.truediv, ast.Pow: operator.pow, ast.Mod: operator.mod,
+    ast.FloorDiv: operator.floordiv, ast.USub: operator.neg, ast.UAdd: operator.pos,
+}
+
+
+def _eval_node(node):
+    if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+        return node.value
+    if isinstance(node, ast.BinOp) and type(node.op) in _ALLOWED_OPS:
+        return _ALLOWED_OPS[type(node.op)](_eval_node(node.left), _eval_node(node.right))
+    if isinstance(node, ast.UnaryOp) and type(node.op) in _ALLOWED_OPS:
+        return _ALLOWED_OPS[type(node.op)](_eval_node(node.operand))
+    raise ValueError("Geçersiz ifade")
+
+
+def calculate(expression: str) -> str:
+    """Matematiksel bir ifadeyi güvenle hesaplar (ör. '12*(3+4)/2')."""
+    try:
+        result = _eval_node(ast.parse(expression, mode="eval").body)
+        return f"{expression} = {result}"
+    except Exception:
+        return "Bu ifadeyi hesaplayamadım."
+
+
+# ---------------------------------------------------------------------------
+# Sistem bilgisi
+# ---------------------------------------------------------------------------
+def system_info() -> str:
+    """İşletim sistemi, CPU, RAM, disk ve batarya durumunu döndürür."""
+    parts = [f"İşletim sistemi: {platform.system()} {platform.release()}"]
+    parts.append(f"CPU çekirdek: {os.cpu_count()}")
+    try:
+        total, used, free = shutil.disk_usage("/")
+        gb = 1024 ** 3
+        parts.append(f"Disk: {free // gb} GB boş / {total // gb} GB toplam")
+    except Exception:
+        pass
+    try:
+        import psutil
+        vm = psutil.virtual_memory()
+        gb = 1024 ** 3
+        parts.append(f"RAM: {vm.available // gb} GB boş / {vm.total // gb} GB toplam (%{vm.percent} dolu)")
+        bat = psutil.sensors_battery()
+        if bat is not None:
+            durum = "şarjda" if bat.power_plugged else "bataryada"
+            parts.append(f"Batarya: %{int(bat.percent)} ({durum})")
+    except Exception:
+        pass
+    return "\n".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# Notlar
+# ---------------------------------------------------------------------------
+def add_note(text: str) -> str:
+    """Bir not kaydeder."""
+    nid = memory.add_note(text)
+    return f"Not eklendi (#{nid}): {text}"
+
+
+def list_notes() -> str:
+    """Kayıtlı tüm notları listeler."""
+    notes = memory.list_notes()
+    if not notes:
+        return "Hiç not yok."
+    return "\n".join(f"#{n['id']}: {n['text']}" for n in notes)
+
+
+def delete_note(note_id: int) -> str:
+    """Numarasına göre bir notu siler."""
+    return "Not silindi." if memory.delete_note(int(note_id)) else "O numarada not yok."
+
+
+# ---------------------------------------------------------------------------
+# Hatırlatıcılar
+# ---------------------------------------------------------------------------
+def set_reminder(minutes: float, text: str) -> str:
+    """Belirtilen dakika sonrası için bir hatırlatıcı kurar."""
+    due = datetime.utcnow() + timedelta(minutes=float(minutes))
+    rid = memory.add_reminder(text, due.isoformat())
+    return f"Tamam efendim, {minutes} dakika sonra hatırlatacağım: {text} (#{rid})"
+
+
+def list_reminders() -> str:
+    """Bekleyen hatırlatıcıları listeler."""
+    rems = memory.list_reminders()
+    if not rems:
+        return "Bekleyen hatırlatıcı yok."
+    out = []
+    for r in rems:
+        try:
+            local = datetime.fromisoformat(r["due_at"])
+            when = local.strftime("%H:%M")
+        except Exception:
+            when = r["due_at"]
+        out.append(f"#{r['id']} ({when} UTC): {r['text']}")
+    return "\n".join(out)
+
+
+def cancel_reminder(reminder_id: int) -> str:
+    """Numarasına göre bir hatırlatıcıyı iptal eder."""
+    return "Hatırlatıcı iptal edildi." if memory.cancel_reminder(int(reminder_id)) else "O numarada hatırlatıcı yok."
+
+
+# ---------------------------------------------------------------------------
 # Tool kayıt tablosu - Ollama'ya verilecek şema + çalıştırılabilir referans
 # ---------------------------------------------------------------------------
 TOOL_FUNCTIONS = {
@@ -277,6 +413,15 @@ TOOL_FUNCTIONS = {
     "read_file": read_file,
     "list_files": list_files,
     "run_command": run_command,
+    "web_fetch": web_fetch,
+    "calculate": calculate,
+    "system_info": system_info,
+    "add_note": add_note,
+    "list_notes": list_notes,
+    "delete_note": delete_note,
+    "set_reminder": set_reminder,
+    "list_reminders": list_reminders,
+    "cancel_reminder": cancel_reminder,
 }
 
 TOOL_SCHEMAS = [
@@ -420,6 +565,115 @@ TOOL_SCHEMAS = [
                     "command": {"type": "string", "description": "Çalıştırılacak komut"},
                 },
                 "required": ["command"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "web_fetch",
+            "description": "Belirli bir web sayfasının metin içeriğini getirir; bir makaleyi/sayfayı okuyup özetlemek için kullan.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "url": {"type": "string", "description": "Okunacak sayfanın adresi"},
+                },
+                "required": ["url"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "calculate",
+            "description": "Matematiksel bir ifadeyi hesaplar (ör. '12*(3+4)/2').",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "expression": {"type": "string", "description": "Hesaplanacak ifade"},
+                },
+                "required": ["expression"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "system_info",
+            "description": "Bilgisayarın durumunu döndürür: işletim sistemi, CPU, RAM, disk, batarya.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "add_note",
+            "description": "Kullanıcının istediği bir notu kaydeder.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "text": {"type": "string", "description": "Not içeriği"},
+                },
+                "required": ["text"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_notes",
+            "description": "Kayıtlı tüm notları listeler.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_note",
+            "description": "Numarasına göre bir notu siler.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "note_id": {"type": "integer", "description": "Silinecek notun numarası"},
+                },
+                "required": ["note_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "set_reminder",
+            "description": "Belirtilen dakika sonrası için bir hatırlatıcı kurar (ör. 10 dakika sonra).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "minutes": {"type": "number", "description": "Kaç dakika sonra"},
+                    "text": {"type": "string", "description": "Hatırlatma metni"},
+                },
+                "required": ["minutes", "text"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_reminders",
+            "description": "Bekleyen hatırlatıcıları listeler.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "cancel_reminder",
+            "description": "Numarasına göre bir hatırlatıcıyı iptal eder.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "reminder_id": {"type": "integer", "description": "İptal edilecek hatırlatıcının numarası"},
+                },
+                "required": ["reminder_id"],
             },
         },
     },

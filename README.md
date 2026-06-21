@@ -11,6 +11,11 @@ Tarayıcıda konuşursun, beyin senin bilgisayarında çalışır — buluta ver
 - 🌐 **Web arama** — Güncel bilgi, haber, hava durumu için DuckDuckGo (API anahtarı gerekmez).
 - 💻 **Sistem kontrolü** — Uygulama açma, web sitesi açma, ses seviyesi ayarı (Windows/macOS/Linux).
 - 👨‍💻 **Kod yazma & çalıştırma** — Dosya oluşturma/okuma/listeleme ve komut çalıştırma (güvenli bir çalışma klasörü içinde).
+- 📄 **Sayfa okuma** — Bir web sayfasının içeriğini getirip özetler (`web_fetch`).
+- 🧮 **Hesap makinesi** — Güvenli matematik (`calculate`).
+- 🖥️ **Sistem bilgisi** — CPU, RAM, disk, batarya (`system_info`).
+- 📝 **Notlar** — Not ekle/listele/sil.
+- ⏰ **Hatırlatıcılar** — "10 dakika sonra hatırlat" → zamanı gelince sesli uyarı.
 - 💾 **Hafıza** — Konuşma geçmişi ve kişisel bilgiler SQLite'ta kalıcı saklanır.
 
 ## Mimari
