@@ -90,7 +90,7 @@ Ardından tarayıcıda **http://127.0.0.1:8000** adresini aç.
 | `JARVIS_PROVIDER` | `ollama` | Yapay zeka beyni: `ollama` (yerel/ücretsiz) veya `claude` (Claude API, pro) |
 | `JARVIS_MODEL` | `llama3.1` | Kullanılacak Ollama modeli (kod için `qwen2.5-coder` önerilir) |
 | `OLLAMA_HOST` | `http://localhost:11434` | Ollama sunucu adresi |
-| `JARVIS_CLAUDE_MODEL` | `claude-opus-4-8` | Claude modu için kullanılacak model |
+| `JARVIS_CLAUDE_MODEL` | `claude-haiku-4-5` | Claude modu modeli (ucuz varsayılan; en iyi kalite: `claude-opus-4-8`) |
 | `JARVIS_CLAUDE_MAX_TOKENS` | `2048` | Claude modu yanıt uzunluğu sınırı |
 | `ANTHROPIC_API_KEY` | — | Claude modu için API anahtarı (zorunlu) |
 | `JARVIS_WORKSPACE` | `~/jarvis_workspace` | Dosya/komut işlemlerinin yapıldığı klasör |

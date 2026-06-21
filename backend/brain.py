@@ -18,7 +18,8 @@ MODEL = os.environ.get("JARVIS_MODEL", "llama3.1")
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
 
 # --- Claude ayarları ---
-CLAUDE_MODEL = os.environ.get("JARVIS_CLAUDE_MODEL", "claude-opus-4-8")
+# Varsayılan: Haiku (ucuz, sesli asistan için yeterli). Pro için: claude-opus-4-8
+CLAUDE_MODEL = os.environ.get("JARVIS_CLAUDE_MODEL", "claude-haiku-4-5")
 CLAUDE_MAX_TOKENS = int(os.environ.get("JARVIS_CLAUDE_MAX_TOKENS", "2048"))
 
 SYSTEM_PROMPT = """Sen Jarvis adında, Türkçe konuşan yardımcı bir yapay zeka asistanısın.
@@ -119,9 +120,23 @@ def _claude_tools() -> list:
     return out
 
 
-def _chat_claude(user_message: str, system: str, history: list) -> str:
+def _chat_claude(user_message: str, facts: dict, history: list) -> str:
     client = _get_claude()
     anthropic_tools = _claude_tools()
+
+    # Prompt caching: sabit sistem talimatına cache_control koyarız.
+    # Render sırası tools -> system olduğu için bu, araç tanımlarını da
+    # önbelleğe alır (her döngü adımında ~%90 daha ucuz okunur).
+    system_blocks = [{
+        "type": "text",
+        "text": SYSTEM_PROMPT,
+        "cache_control": {"type": "ephemeral"},
+    }]
+    if facts:
+        facts_text = "Kullanıcı hakkında bildiklerin:\n" + "\n".join(
+            f"- {k}: {v}" for k, v in facts.items()
+        )
+        system_blocks.append({"type": "text", "text": facts_text})
 
     # Geçmişi Anthropic biçimine çevir (yalnızca metin user/assistant mesajları)
     messages = [
@@ -135,7 +150,7 @@ def _chat_claude(user_message: str, system: str, history: list) -> str:
         response = client.messages.create(
             model=CLAUDE_MODEL,
             max_tokens=CLAUDE_MAX_TOKENS,
-            system=system,
+            system=system_blocks,
             tools=anthropic_tools,
             messages=messages,
         )
@@ -185,14 +200,14 @@ def chat(user_message: str, session_id: str = "default") -> str:
     """Kullanıcı mesajını işler, gerekirse araç çağırır, metin cevap döndürür."""
     memory.add_message(session_id, "user", user_message)
     _auto_capture(user_message)
-    system = _build_system(memory.get_facts())
+    facts = memory.get_facts()
     history = memory.get_history(session_id, limit=20)
 
     try:
         if PROVIDER == "claude":
-            final_text = _chat_claude(user_message, system, history)
+            final_text = _chat_claude(user_message, facts, history)
         else:
-            final_text = _chat_ollama(user_message, system, history)
+            final_text = _chat_ollama(user_message, _build_system(facts), history)
     except Exception as e:
         final_text = f"Bir hata oluştu efendim: {e}"
 
