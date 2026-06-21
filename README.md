@@ -10,6 +10,7 @@ Tarayıcıda konuşursun, beyin senin bilgisayarında çalışır — buluta ver
 - 🧠 **Yerel beyin** — [Ollama](https://ollama.com) ile açık kaynak LLM (varsayılan: `llama3.1`). Ücretsiz.
 - 🌐 **Web arama** — Güncel bilgi, haber, hava durumu için DuckDuckGo (API anahtarı gerekmez).
 - 💻 **Sistem kontrolü** — Uygulama açma, web sitesi açma, ses seviyesi ayarı (Windows/macOS/Linux).
+- 👨‍💻 **Kod yazma & çalıştırma** — Dosya oluşturma/okuma/listeleme ve komut çalıştırma (güvenli bir çalışma klasörü içinde).
 - 💾 **Hafıza** — Konuşma geçmişi ve kişisel bilgiler SQLite'ta kalıcı saklanır.
 
 ## Mimari
@@ -76,8 +77,19 @@ Ardından tarayıcıda **http://127.0.0.1:8000** adresini aç.
 
 | Değişken | Varsayılan | Açıklama |
 |---|---|---|
-| `JARVIS_MODEL` | `llama3.1` | Kullanılacak Ollama modeli |
+| `JARVIS_MODEL` | `llama3.1` | Kullanılacak Ollama modeli (kod için `qwen2.5-coder` önerilir) |
 | `OLLAMA_HOST` | `http://localhost:11434` | Ollama sunucu adresi |
+| `JARVIS_WORKSPACE` | `~/jarvis_workspace` | Dosya/komut işlemlerinin yapıldığı klasör |
+| `JARVIS_ALLOW_COMMANDS` | `1` | Komut çalıştırmayı kapatmak için `0` yap |
+
+### Kod yazma örneği
+
+- "Jarvis, Python'da bir asal sayı bulucu yaz ve çalıştır."
+- Jarvis `write_file` ile dosyayı `~/jarvis_workspace` içine kaydeder, `run_command` ile çalıştırır, hata olursa düzeltir.
+
+> ⚠️ **Güvenlik:** Dosya işlemleri yalnızca çalışma klasörü içinde yapılır (dışarı çıkılamaz).
+> Komut çalıştırmada tehlikeli kalıplar (`rm -rf /`, `shutdown`, indirme + çalıştırma vb.) engellenir ve 60 sn zaman aşımı vardır.
+> Kod için en iyi sonuç: `ollama pull qwen2.5-coder` ve `JARVIS_MODEL=qwen2.5-coder`.
 
 ## Klasör Yapısı
 

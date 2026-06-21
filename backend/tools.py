@@ -10,10 +10,39 @@ import subprocess
 import shutil
 import webbrowser
 from datetime import datetime
+from pathlib import Path
 
 from ddgs import DDGS
 
 import memory
+
+
+# ---------------------------------------------------------------------------
+# Çalışma klasörü (workspace) - dosya/komut işlemleri buraya hapsedilir.
+# Güvenlik: Jarvis bu klasörün dışına yazamaz/okuyamaz, komutlar burada çalışır.
+# ---------------------------------------------------------------------------
+WORKSPACE = Path(
+    os.environ.get("JARVIS_WORKSPACE", os.path.join(Path.home(), "jarvis_workspace"))
+).resolve()
+WORKSPACE.mkdir(parents=True, exist_ok=True)
+
+# Komut çalıştırma varsayılan olarak açık; kapatmak için JARVIS_ALLOW_COMMANDS=0
+ALLOW_COMMANDS = os.environ.get("JARVIS_ALLOW_COMMANDS", "1") != "0"
+
+# Açıkça tehlikeli kalıplar - bunları içeren komutlar reddedilir.
+_DANGEROUS = [
+    "rm -rf /", "rm -rf ~", "rm -rf *", ":(){", "mkfs", "dd if=",
+    "format ", "del /f /s /q", "shutdown", "reboot", "> /dev/sda",
+    "chmod -r 000", "curl ", "wget ", "| sh", "| bash",
+]
+
+
+def _safe_path(path: str) -> Path:
+    """Verilen yolu workspace içine çözer; dışarı çıkışı engeller."""
+    p = (WORKSPACE / path).resolve()
+    if WORKSPACE not in p.parents and p != WORKSPACE:
+        raise ValueError("İzin verilmeyen yol: çalışma klasörünün dışına çıkılamaz.")
+    return p
 
 
 # ---------------------------------------------------------------------------
@@ -159,6 +188,81 @@ def recall() -> str:
 
 
 # ---------------------------------------------------------------------------
+# Dosya işlemleri (workspace ile sınırlı)
+# ---------------------------------------------------------------------------
+def write_file(path: str, content: str) -> str:
+    """Çalışma klasörüne bir dosya yazar/oluşturur (kod, metin vb.)."""
+    try:
+        p = _safe_path(path)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(content, encoding="utf-8")
+        return f"Dosya kaydedildi: {p} ({len(content)} karakter)"
+    except Exception as e:
+        return f"Dosya yazılamadı: {e}"
+
+
+def read_file(path: str) -> str:
+    """Çalışma klasöründeki bir dosyayı okur."""
+    try:
+        p = _safe_path(path)
+        if not p.exists():
+            return f"Dosya bulunamadı: {path}"
+        text = p.read_text(encoding="utf-8", errors="replace")
+        if len(text) > 6000:
+            text = text[:6000] + "\n... (kısaltıldı)"
+        return text
+    except Exception as e:
+        return f"Dosya okunamadı: {e}"
+
+
+def list_files(path: str = ".") -> str:
+    """Çalışma klasöründeki dosya ve klasörleri listeler."""
+    try:
+        p = _safe_path(path)
+        if not p.exists():
+            return f"Klasör bulunamadı: {path}"
+        items = []
+        for item in sorted(p.iterdir()):
+            tip = "klasör" if item.is_dir() else "dosya"
+            items.append(f"{item.name} ({tip})")
+        return "\n".join(items) if items else "Klasör boş."
+    except Exception as e:
+        return f"Listelenemedi: {e}"
+
+
+def run_command(command: str) -> str:
+    """Çalışma klasöründe bir terminal komutu çalıştırır (ör. python dosya.py).
+    Güvenlik için tehlikeli komutlar engellenir ve 60 sn zaman aşımı vardır."""
+    if not ALLOW_COMMANDS:
+        return "Komut çalıştırma kapalı (JARVIS_ALLOW_COMMANDS=0)."
+    low = command.lower()
+    for bad in _DANGEROUS:
+        if bad in low:
+            return f"Güvenlik nedeniyle reddedildi: '{bad}' içeren komutlar çalıştırılamaz."
+    try:
+        result = subprocess.run(
+            command,
+            shell=True,
+            cwd=str(WORKSPACE),
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        out = (result.stdout or "").strip()
+        err = (result.stderr or "").strip()
+        parts = [f"Çıkış kodu: {result.returncode}"]
+        if out:
+            parts.append("ÇIKTI:\n" + out[:4000])
+        if err:
+            parts.append("HATA:\n" + err[:2000])
+        return "\n".join(parts)
+    except subprocess.TimeoutExpired:
+        return "Komut 60 saniyede tamamlanamadı (zaman aşımı)."
+    except Exception as e:
+        return f"Komut çalıştırılamadı: {e}"
+
+
+# ---------------------------------------------------------------------------
 # Tool kayıt tablosu - Ollama'ya verilecek şema + çalıştırılabilir referans
 # ---------------------------------------------------------------------------
 TOOL_FUNCTIONS = {
@@ -169,6 +273,10 @@ TOOL_FUNCTIONS = {
     "set_volume": set_volume,
     "remember": remember,
     "recall": recall,
+    "write_file": write_file,
+    "read_file": read_file,
+    "list_files": list_files,
+    "run_command": run_command,
 }
 
 TOOL_SCHEMAS = [
@@ -257,6 +365,62 @@ TOOL_SCHEMAS = [
             "name": "recall",
             "description": "Kullanıcı hakkında daha önce kaydedilmiş bilgileri getirir.",
             "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "write_file",
+            "description": "Çalışma klasörüne bir dosya yazar/oluşturur. Kod yazıp kaydetmek için bunu kullan.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "Dosya adı/yolu, ör. 'merhaba.py'"},
+                    "content": {"type": "string", "description": "Dosyanın içeriği"},
+                },
+                "required": ["path", "content"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "read_file",
+            "description": "Çalışma klasöründeki bir dosyanın içeriğini okur.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "Okunacak dosyanın adı/yolu"},
+                },
+                "required": ["path"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_files",
+            "description": "Çalışma klasöründeki dosya ve klasörleri listeler.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "Listelenecek klasör (varsayılan: kök)"},
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "run_command",
+            "description": "Çalışma klasöründe bir terminal komutu çalıştırır (ör. yazdığın kodu test etmek için 'python dosya.py').",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "command": {"type": "string", "description": "Çalıştırılacak komut"},
+                },
+                "required": ["command"],
+            },
         },
     },
 ]

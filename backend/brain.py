@@ -20,11 +20,13 @@ Kuralların:
 - Güncel bilgi (hava, haber, tarih, fiyat) gerektiğinde web_search aracını kullan.
 - Uygulama açma, ses ayarı gibi sistem işlemleri için ilgili araçları kullan.
 - Kullanıcı kişisel bir bilgi paylaşırsa (ismi, tercihi) remember aracıyla kaydet.
+- Kullanıcı kod yazmanı isterse: kodu write_file ile bir dosyaya kaydet, gerekirse run_command ile çalıştırıp test et. Hata çıkarsa düzelt ve tekrar dene.
+- Dosya işlemleri çalışma klasörü içinde yapılır; var olanı görmek için list_files / read_file kullan.
 - Bir aracı kullandıktan sonra sonucu doğal bir cümleyle özetle."""
 
 
 def _max_iterations() -> int:
-    return 5
+    return 8
 
 
 def chat(user_message: str, session_id: str = "default") -> str:
