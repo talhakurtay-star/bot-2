@@ -6,6 +6,7 @@
 JARVIS_PROVIDER ortam değişkeni ile seçilir.
 """
 import os
+import re
 
 import tools
 import memory
@@ -38,6 +39,7 @@ Kuralların:
 - Müzik için play_music; çalanı duraklat/geç için media_control kullan.
 - E-posta göndermek için send_email; takvim için add_event / list_events (tarihi ISO 8601'e çevir).
 - Kod yazarken cevabında kodu ```dil ... ``` bloğu içinde ver ki ekranda düzgün gösterilsin.
+- Hava durumu için get_weather; ışıkları açıp kapatmak için hue_lights kullan.
 - Bir aracı kullandıktan sonra sonucu doğal bir cümleyle özetle."""
 
 MAX_ITERATIONS = 8
@@ -167,9 +169,22 @@ def _chat_claude(user_message: str, system: str, history: list) -> str:
 # ---------------------------------------------------------------------------
 # Genel giriş noktası
 # ---------------------------------------------------------------------------
+def _auto_capture(user_message: str):
+    """Mesajdan basit kalıplarla kişisel bilgi yakalayıp otomatik kaydeder."""
+    patterns = {
+        "isim": r"(?:benim\s+)?(?:ad[ıi]m|ismim)\s+([A-Za-zÇĞİÖŞÜçğıöşü]+)",
+        "şehir": r"(?:ben\s+)?([A-Za-zÇĞİÖŞÜçğıöşü]+)\s*['’]?d[ae]\s+(?:yaşıyorum|oturuyorum)",
+    }
+    for key, pat in patterns.items():
+        m = re.search(pat, user_message, re.IGNORECASE)
+        if m:
+            memory.remember_fact(key, m.group(1).strip().capitalize())
+
+
 def chat(user_message: str, session_id: str = "default") -> str:
     """Kullanıcı mesajını işler, gerekirse araç çağırır, metin cevap döndürür."""
     memory.add_message(session_id, "user", user_message)
+    _auto_capture(user_message)
     system = _build_system(memory.get_facts())
     history = memory.get_history(session_id, limit=20)
 

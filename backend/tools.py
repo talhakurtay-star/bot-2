@@ -527,6 +527,49 @@ def delete_event(event_id: int) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Hava durumu (wttr.in - ücretsiz, anahtar gerekmez)
+# ---------------------------------------------------------------------------
+def get_weather(city: str) -> str:
+    """Bir şehrin güncel hava durumunu döndürür."""
+    try:
+        url = f"https://wttr.in/{urllib.parse.quote(city)}?format=%l:+%C+%t+(hissedilen+%f),+nem+%h,+r%C3%BCzgar+%w&lang=tr"
+        resp = requests.get(url, timeout=12, headers={"User-Agent": "curl/8"})
+        resp.raise_for_status()
+        text = resp.text.strip()
+        return text if text and "Unknown" not in text else f"'{city}' için hava durumu bulunamadı."
+    except Exception as e:
+        return f"Hava durumu alınamadı: {e}"
+
+
+# ---------------------------------------------------------------------------
+# Akıllı ev - Philips Hue (ortam değişkenleriyle yapılandırılır)
+# ---------------------------------------------------------------------------
+def hue_lights(action: str, brightness: int = None) -> str:
+    """Philips Hue ışıklarını kontrol eder: on, off veya parlaklık (0-100)."""
+    bridge = os.environ.get("JARVIS_HUE_BRIDGE")
+    key = os.environ.get("JARVIS_HUE_KEY")
+    if not (bridge and key):
+        return "Akıllı ev ayarlı değil (JARVIS_HUE_BRIDGE ve JARVIS_HUE_KEY gerekli)."
+    body = {}
+    action = (action or "").strip().lower()
+    if action == "on":
+        body["on"] = True
+    elif action == "off":
+        body["on"] = False
+    if brightness is not None:
+        body["on"] = True
+        body["bri"] = max(1, min(254, int(int(brightness) * 254 / 100)))
+    if not body:
+        return "Geçersiz işlem. 'on', 'off' veya parlaklık ver."
+    try:
+        url = f"http://{bridge}/api/{key}/groups/0/action"
+        requests.put(url, json=body, timeout=8)
+        return f"Işıklar: {action}" + (f" %{brightness}" if brightness is not None else "")
+    except Exception as e:
+        return f"Işıklar kontrol edilemedi: {e}"
+
+
+# ---------------------------------------------------------------------------
 # Tool kayıt tablosu - Ollama'ya verilecek şema + çalıştırılabilir referans
 # ---------------------------------------------------------------------------
 TOOL_FUNCTIONS = {
@@ -557,6 +600,8 @@ TOOL_FUNCTIONS = {
     "add_event": add_event,
     "list_events": list_events,
     "delete_event": delete_event,
+    "get_weather": get_weather,
+    "hue_lights": hue_lights,
 }
 
 TOOL_SCHEMAS = [
@@ -903,6 +948,35 @@ TOOL_SCHEMAS = [
                     "event_id": {"type": "integer", "description": "Silinecek etkinliğin numarası"},
                 },
                 "required": ["event_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_weather",
+            "description": "Bir şehrin güncel hava durumunu döndürür.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "city": {"type": "string", "description": "Şehir adı"},
+                },
+                "required": ["city"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "hue_lights",
+            "description": "Akıllı ev ışıklarını (Philips Hue) açar, kapatır veya parlaklığını ayarlar.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string", "description": "on, off"},
+                    "brightness": {"type": "integer", "description": "0-100 parlaklık (opsiyonel)"},
+                },
+                "required": ["action"],
             },
         },
     },
