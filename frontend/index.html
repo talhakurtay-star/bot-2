@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jarvis</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>J.A.R.V.I.S</h1>
+      <div id="status" class="status">Hazır</div>
+    </header>
+
+    <div id="orb" class="orb idle"></div>
+
+    <div id="chat" class="chat"></div>
+
+    <div class="controls">
+      <input id="textInput" type="text" placeholder="Bir şey yazın veya 'Jarvis' deyin..." />
+      <button id="sendBtn" title="Gönder">➤</button>
+      <button id="micBtn" title="Konuş">🎤</button>
+      <button id="wakeBtn" class="wake-off" title="Wake word">Jarvis'i dinle: Kapalı</button>
+    </div>
+
+    <div class="footer">
+      <label><input type="checkbox" id="ttsToggle" checked /> Sesli yanıt</label>
+      <button id="resetBtn">Hafızayı temizle</button>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
