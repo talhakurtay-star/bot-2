@@ -5,15 +5,21 @@ Tarayıcıda konuşursun, beyin senin bilgisayarında çalışır — buluta ver
 
 ## ⚡ En kolay başlatma (çift tıkla)
 
-İlk açılışta kendi kendine kurar, sonraki açılışlarda direkt açılır — terminal/komut gerekmez:
+Terminal/komut gerekmez. İlk açılışta **kurulum sihirbazı** çıkar (Ollama mı Claude mı, API anahtarın), gerisini kendi yapar:
 
 - **Windows:** `baslat.bat` dosyasına çift tıkla
 - **macOS / Linux:** `baslat.command` dosyasına çift tıkla
-  *(Mac ilk seferde izin isterse: sağ tık → Aç. Gerekirse terminalde `chmod +x baslat.command`)*
+  *(Mac ilk seferde izin isterse: sağ tık → Aç)*
 
-Başlatıcı: kurulumu yapar → sunucuyu başlatır → tarayıcıda **http://127.0.0.1:8000** otomatik açılır.
+Başlatıcı sırasıyla: Python'u kontrol eder → ilk açılışta sihirbazı çalıştırır → bağımlılıkları kurar → (Ollama modu ise modeli indirir) → sunucuyu başlatır → tarayıcıda **http://127.0.0.1:8000** otomatik açılır.
 
-> Ön koşul: bilgisayarında **Python 3** kurulu olmalı (python.org). Beyin için ya **Ollama** (ücretsiz) ya da `.env`'de bir **Claude API anahtarı**.
+### 🖱️ Masaüstü kısayolu (ikonlu)
+
+Masaüstüne çift tıklanabilir bir "Jarvis" simgesi koymak için bir kez çalıştır:
+- **Windows:** `masaustu-kisayol.bat`
+- **macOS / Linux:** `masaustu-kisayol.command`
+
+> Tek ön koşul: **Python 3** (python.org). Python yoksa başlatıcı indirme sayfasını otomatik açar.
 
 
 ## Özellikler
