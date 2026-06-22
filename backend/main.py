@@ -4,6 +4,7 @@ Tarayıcı arayüzünü sunar ve /chat endpoint'i ile beyne bağlanır.
 Yerel makinede çalışır, böylece sistem kontrolü mümkündür.
 """
 import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -13,7 +14,14 @@ from pydantic import BaseModel
 import brain
 import memory
 
-app = FastAPI(title="Jarvis", version="1.0.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    memory.init_db()
+    yield
+
+
+app = FastAPI(title="Jarvis", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -32,11 +40,6 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     reply: str
-
-
-@app.on_event("startup")
-def _startup():
-    memory.init_db()
 
 
 @app.get("/health")
