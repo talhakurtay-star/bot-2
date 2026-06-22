@@ -3,6 +3,19 @@
 Iron Man'deki Jarvis'ten esinlenen, **tamamen ücretsiz ve yerel** çalışan bir sesli asistan.
 Tarayıcıda konuşursun, beyin senin bilgisayarında çalışır — buluta veri gitmez, API ücreti yok.
 
+## ⚡ En kolay başlatma (çift tıkla)
+
+İlk açılışta kendi kendine kurar, sonraki açılışlarda direkt açılır — terminal/komut gerekmez:
+
+- **Windows:** `baslat.bat` dosyasına çift tıkla
+- **macOS / Linux:** `baslat.command` dosyasına çift tıkla
+  *(Mac ilk seferde izin isterse: sağ tık → Aç. Gerekirse terminalde `chmod +x baslat.command`)*
+
+Başlatıcı: kurulumu yapar → sunucuyu başlatır → tarayıcıda **http://127.0.0.1:8000** otomatik açılır.
+
+> Ön koşul: bilgisayarında **Python 3** kurulu olmalı (python.org). Beyin için ya **Ollama** (ücretsiz) ya da `.env`'de bir **Claude API anahtarı**.
+
+
 ## Özellikler
 
 - 🎤 **Sesli konuşma** — Tarayıcının yerleşik ses tanıma (STT) ve seslendirme (TTS) motoru ile, Türkçe.
