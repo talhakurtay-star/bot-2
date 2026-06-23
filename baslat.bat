@@ -2,27 +2,37 @@
 REM Jarvis - cift tikla baslat (Windows)
 cd /d "%~dp0"
 
-REM 1) Python kontrolu
-where python >nul 2>&1
-if errorlevel 1 (
-  echo Python bulunamadi. Indirme sayfasi aciliyor...
+REM 1) Python kontrolu (py launcher veya python)
+set "PY="
+where py >nul 2>&1 && set "PY=py"
+if not defined PY ( where python >nul 2>&1 && set "PY=python" )
+if not defined PY (
+  echo.
+  echo [HATA] Python bulunamadi.
+  echo Indirme sayfasi aciliyor. Kurarken ALT TARAFTAKI
+  echo "Add python.exe to PATH" kutusunu MUTLAKA isaretle.
+  echo Kurduktan sonra bu dosyaya tekrar cift tikla.
+  echo.
   start "" https://www.python.org/downloads/
-  echo Python'u kurarken "Add Python to PATH" kutusunu isaretle, sonra bu dosyaya tekrar cift tikla.
   pause
   exit /b 1
 )
+echo Python bulundu: %PY%
 
 REM 2) Ilk acilis sihirbazi (.env yoksa)
 if not exist .env (
-  python backend\wizard.py
+  %PY% backend\wizard.py
+  if errorlevel 1 ( echo [HATA] Sihirbaz calismadi. & pause & exit /b 1 )
 )
 
 REM 3) Kurulum (sanal ortam yoksa)
 if not exist backend\.venv (
-  echo Bagimliliklar yukleniyor, lutfen bekleyin (ilk seferde biraz surer)...
-  python -m venv backend\.venv
+  echo Bagimliliklar yukleniyor, lutfen bekleyin (ilk seferde birkac dakika surebilir)...
+  %PY% -m venv backend\.venv
+  if errorlevel 1 ( echo [HATA] Sanal ortam olusturulamadi. & pause & exit /b 1 )
   backend\.venv\Scripts\python -m pip install --upgrade pip -q
-  backend\.venv\Scripts\pip install -r backend\requirements.txt -q
+  backend\.venv\Scripts\pip install -r backend\requirements.txt
+  if errorlevel 1 ( echo [HATA] Paketler yuklenemedi (internet?). & pause & exit /b 1 )
 )
 
 REM 4) .env ayarlarini yukle
@@ -44,6 +54,12 @@ if not "%JARVIS_MODEL%"=="" (
 
 REM 6) Tarayiciyi ac + sunucuyu baslat
 start "" http://127.0.0.1:8000
-echo Jarvis calisiyor -^> http://127.0.0.1:8000  (kapatmak icin bu pencereyi kapatin)
-cd backend
-.venv\Scripts\python main.py
+echo.
+echo Jarvis calisiyor -^> http://127.0.0.1:8000
+echo (Kapatmak icin bu pencereyi kapat)
+echo.
+backend\.venv\Scripts\python backend\main.py
+
+echo.
+echo === Sunucu durdu. Yukarida hata varsa okuyabilirsin. ===
+pause
