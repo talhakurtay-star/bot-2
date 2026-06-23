@@ -18,12 +18,14 @@ if [ ! -f .env ]; then
   python3 backend/wizard.py
 fi
 
-# 3) Kurulum (sanal ortam yoksa)
+# 3) Kurulum: sanal ortam + paketler (yarim kalmis kurulum kendini onarir)
 if [ ! -d backend/.venv ]; then
-  echo "Bagimliliklar yukleniyor, lutfen bekleyin (ilk seferde biraz surer)..."
   python3 -m venv backend/.venv
+fi
+if ! backend/.venv/bin/python -c "import fastapi, uvicorn, anthropic" >/dev/null 2>&1; then
+  echo "Bagimliliklar yukleniyor, lutfen bekleyin (ilk seferde biraz surer)..."
   backend/.venv/bin/pip install --upgrade pip -q
-  backend/.venv/bin/pip install -r backend/requirements.txt -q
+  backend/.venv/bin/pip install -r backend/requirements.txt
 fi
 
 # 4) .env ayarlarini yukle
