@@ -3,15 +3,21 @@
 Iron Man'deki Jarvis'ten esinlenen, **tamamen ücretsiz ve yerel** çalışan bir sesli asistan.
 Tarayıcıda konuşursun, beyin senin bilgisayarında çalışır — buluta veri gitmez, API ücreti yok.
 
-## ⚡ En kolay başlatma (çift tıkla)
+## ⚡ En kolay başlatma (çift tıkla) — SIFIR KURULUM
 
-Terminal/komut gerekmez. İlk açılışta **kurulum sihirbazı** çıkar (Ollama mı Claude mı, API anahtarın), gerisini kendi yapar:
+**`pip install` gerekmez!** Jarvis artık yalnızca Python'un kendisiyle çalışır (standart kütüphane). Terminal/komut yok:
 
 - **Windows:** `baslat.bat` dosyasına çift tıkla
 - **macOS / Linux:** `baslat.command` dosyasına çift tıkla
   *(Mac ilk seferde izin isterse: sağ tık → Aç)*
 
-Başlatıcı sırasıyla: Python'u kontrol eder → ilk açılışta sihirbazı çalıştırır → bağımlılıkları kurar → (Ollama modu ise modeli indirir) → sunucuyu başlatır → tarayıcıda **http://127.0.0.1:8000** otomatik açılır.
+Başlatıcı: Python'u kontrol eder → ilk açılışta beyin seçimi sihirbazını çalıştırır → (Ollama modu ise modeli hazırlar) → sunucuyu başlatır → tarayıcıda **http://127.0.0.1:8000** otomatik açılır.
+
+> Tek ön koşul: **Python 3** kurulu olsun (python.org, kurarken "Add to PATH" işaretle). Hiçbir paket indirilmez — bu yüzden Python sürümünden bağımsız sorunsuz çalışır.
+>
+> Beyin: ya **Ollama** (ücretsiz, ollama.com'dan kurulur) ya da `.env`'de bir **Claude API anahtarı**.
+>
+> *(İleri düzey: FastAPI tabanlı sürüm için `backend/requirements.txt` + `backend/main.py` hâlâ mevcut.)*
 
 ### 🖱️ Masaüstü kısayolu (ikonlu)
 

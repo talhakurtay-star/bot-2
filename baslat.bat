@@ -1,50 +1,32 @@
 @echo off
-REM Jarvis - cift tikla baslat (Windows)
+REM Jarvis - cift tikla baslat (Windows) - SIFIR KURULUM (pip gerekmez)
 cd /d "%~dp0"
 
-REM 1) Python kontrolu (py launcher veya python)
+REM 1) Python bul
 set "PY="
 where py >nul 2>&1 && set "PY=py"
 if not defined PY ( where python >nul 2>&1 && set "PY=python" )
 if not defined PY (
   echo.
-  echo [HATA] Python bulunamadi.
-  echo Indirme sayfasi aciliyor. Kurarken ALT TARAFTAKI
-  echo "Add python.exe to PATH" kutusunu MUTLAKA isaretle.
-  echo Kurduktan sonra bu dosyaya tekrar cift tikla.
-  echo.
+  echo [HATA] Python bulunamadi. Indirme sayfasi aciliyor.
+  echo Kurarken "Add python.exe to PATH" kutusunu isaretle, sonra tekrar cift tikla.
   start "" https://www.python.org/downloads/
   pause
   exit /b 1
 )
 echo Python bulundu: %PY%
 
-REM 2) Ilk acilis sihirbazi (.env yoksa)
+REM 2) Ilk acilis sihirbazi (.env yoksa beyin secimi)
 if not exist .env (
   %PY% backend\wizard.py
-  if errorlevel 1 ( echo [HATA] Sihirbaz calismadi. & pause & exit /b 1 )
 )
 
-REM 3) Kurulum: sanal ortam + paketler (her acilista dogrulanir, yarim kalmis kurulum kendini onarir)
-if not exist backend\.venv (
-  echo Sanal ortam olusturuluyor...
-  %PY% -m venv backend\.venv
-  if errorlevel 1 ( echo [HATA] Sanal ortam olusturulamadi. & pause & exit /b 1 )
-)
-backend\.venv\Scripts\python -c "import fastapi, uvicorn, anthropic" >nul 2>&1
-if errorlevel 1 (
-  echo Bagimliliklar yukleniyor, lutfen bekleyin (ilk seferde birkac dakika surebilir)...
-  backend\.venv\Scripts\python -m pip install --upgrade pip -q
-  backend\.venv\Scripts\pip install -r backend\requirements.txt
-  if errorlevel 1 ( echo [HATA] Paketler yuklenemedi. Yukaridaki hatayi kopyalayip gonder. & pause & exit /b 1 )
-)
-
-REM 4) .env ayarlarini yukle
+REM 3) .env ayarlarini yukle
 for /f "usebackq tokens=1,* delims==" %%a in (".env") do (
   echo %%a | findstr /b "#" >nul || if not "%%a"=="" set "%%a=%%b"
 )
 
-REM 5) Ollama modu ise modeli indir (ollama kuruluysa)
+REM 4) Ollama modu ise model hazirla (ollama kuruluysa)
 if not "%JARVIS_MODEL%"=="" (
   where ollama >nul 2>&1
   if errorlevel 1 (
@@ -56,14 +38,10 @@ if not "%JARVIS_MODEL%"=="" (
   )
 )
 
-REM 6) Tarayiciyi ac + sunucuyu baslat
-start "" http://127.0.0.1:8000
+REM 5) Sunucuyu baslat (paket KURULUMU YOK - sadece Python standart kutuphanesi)
 echo.
-echo Jarvis calisiyor -^> http://127.0.0.1:8000
-echo (Kapatmak icin bu pencereyi kapat)
-echo.
-backend\.venv\Scripts\python backend\main.py
+%PY% backend\server.py
 
 echo.
-echo === Sunucu durdu. Yukarida hata varsa okuyabilirsin. ===
+echo === Sunucu durdu. Hata varsa yukarida gorunur. ===
 pause

@@ -8,6 +8,7 @@ import re
 import ast
 import sys
 import ssl
+import json
 import smtplib
 import platform
 import subprocess
@@ -15,14 +16,22 @@ import shutil
 import operator
 import webbrowser
 import urllib.parse
+import urllib.request
+import urllib.error
 from email.message import EmailMessage
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import requests
-from ddgs import DDGS
-
 import memory
+
+_UA = "Mozilla/5.0 (Jarvis)"
+
+
+def _http_get(url, timeout=15, headers=None):
+    req = urllib.request.Request(url, headers={"User-Agent": _UA, **(headers or {})})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        charset = r.headers.get_content_charset() or "utf-8"
+        return r.read().decode(charset, errors="replace")
 
 
 # ---------------------------------------------------------------------------
@@ -69,17 +78,19 @@ def get_current_time() -> str:
 def web_search(query: str, max_results: int = 5) -> str:
     """DuckDuckGo ile internette arama yapar (ücretsiz, API anahtarı gerekmez)."""
     try:
-        with DDGS() as ddgs:
-            results = list(ddgs.text(query, max_results=max_results))
-        if not results:
-            return "Arama sonucu bulunamadı."
-        lines = []
-        for r in results:
-            title = r.get("title", "")
-            body = r.get("body", "")
-            href = r.get("href", "")
-            lines.append(f"- {title}: {body} ({href})")
-        return "\n".join(lines)
+        html = _http_get("https://html.duckduckgo.com/html/?q=" + urllib.parse.quote(query))
+        titles = re.findall(r'class="result__a"[^>]*>(.*?)</a>', html, re.S)
+        snippets = re.findall(r'class="result__snippet"[^>]*>(.*?)</a>', html, re.S)
+
+        def clean(s):
+            return re.sub(r"<[^>]+>", "", s).replace("&amp;", "&").strip()
+
+        out = []
+        for i in range(min(max_results, len(titles))):
+            t = clean(titles[i])
+            sn = clean(snippets[i]) if i < len(snippets) else ""
+            out.append(f"- {t}: {sn}")
+        return "\n".join(out) if out else "Arama sonucu bulunamadı."
     except Exception as e:
         return f"Web araması başarısız: {e}"
 
@@ -278,9 +289,7 @@ def web_fetch(url: str) -> str:
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
     try:
-        resp = requests.get(url, timeout=15, headers={"User-Agent": "Mozilla/5.0 Jarvis"})
-        resp.raise_for_status()
-        html = resp.text
+        html = _http_get(url, timeout=15)
         # script/style at, etiketleri temizle, boşlukları sadeleştir
         html = re.sub(r"(?is)<(script|style|head|nav|footer)[^>]*>.*?</\1>", " ", html)
         text = re.sub(r"(?s)<[^>]+>", " ", html)
@@ -533,9 +542,7 @@ def get_weather(city: str) -> str:
     """Bir şehrin güncel hava durumunu döndürür."""
     try:
         url = f"https://wttr.in/{urllib.parse.quote(city)}?format=%l:+%C+%t+(hissedilen+%f),+nem+%h,+r%C3%BCzgar+%w&lang=tr"
-        resp = requests.get(url, timeout=12, headers={"User-Agent": "curl/8"})
-        resp.raise_for_status()
-        text = resp.text.strip()
+        text = _http_get(url, timeout=12, headers={"User-Agent": "curl/8"}).strip()
         return text if text and "Unknown" not in text else f"'{city}' için hava durumu bulunamadı."
     except Exception as e:
         return f"Hava durumu alınamadı: {e}"
@@ -563,7 +570,10 @@ def hue_lights(action: str, brightness: int = None) -> str:
         return "Geçersiz işlem. 'on', 'off' veya parlaklık ver."
     try:
         url = f"http://{bridge}/api/{key}/groups/0/action"
-        requests.put(url, json=body, timeout=8)
+        req = urllib.request.Request(
+            url, data=json.dumps(body).encode("utf-8"), method="PUT",
+            headers={"Content-Type": "application/json"})
+        urllib.request.urlopen(req, timeout=8)
         return f"Işıklar: {action}" + (f" %{brightness}" if brightness is not None else "")
     except Exception as e:
         return f"Işıklar kontrol edilemedi: {e}"
